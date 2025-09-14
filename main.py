@@ -28,16 +28,6 @@ CATEGORIES = [
     "Competitive intel & new SKUs",
     "Flavors",
     "Ingredients & functional actives",
-    "Claims & positioning",
-    "Regulatory & policy",
-    "Packaging & sustainability",
-    "Channel & distribution",
-    "Pricing & promotion",
-    "M&A, partnerships & investments",
-    "Supply chain & costs",
-    "Consumer health & science",
-    "Beer/craft dynamics",
-    "Macro & retailer moves",
 ]
 
 # Sources we’ll monitor.
@@ -222,6 +212,18 @@ class SummaryItem(BaseModel):
     risks: List[str]
     opportunities: List[str]
 
+def parse_categories(full: str):
+    """
+    Extract category lines from either:
+      A) '### Relevant Categories' (or 'Categories') then list items
+      B) 'Categories: ...' inline
+    Returns a list mapped to KNOWN category names where possible.
+    """
+    cat_paragraph_title = "### Relevant Categories\n"
+    cats_prefixed = full.split("\n\n")[0].split("\n")[1:]
+    cats = list(map(lambda cat: cat[2:].strip(), cats_prefixed))
+    return cats
+
 def call_openai_summary(text: str, url: str, title: str) -> Tuple[List[str], str, List[str], List[str]]:
     from openai import OpenAI
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -230,9 +232,9 @@ def call_openai_summary(text: str, url: str, title: str) -> Tuple[List[str], str
     clipped = text[:OPENAI_MAX_CHARS]
 
     system_prompt = (
-        "You are a market analyst for a global beverages company covering energy drinks, "
+        "You are a market analyst for a global beverages company covering energy drinks, specifically"
         "functional/sport drinks"
-        "Classify content into our monitoring categories and produce crisp, factual outputs."
+        "Classify content into our monitoring categories provided by user and produce crisp, factual outputs."
     )
 
     user_prompt = f"""
@@ -243,10 +245,10 @@ CATEGORIES TO USE:
 {', '.join(CATEGORIES)}
 
 TASKS:
-1) Pick the 2-4 most relevant categories for this item (from the list).
-2) Write a 4-6 sentence executive summary focused on implications for energy/functional/relaxation/beer.
+1) Pick the 2-4 most relevant categories for this item (categories specified in paragraph "CATEGORIES TO USE:").
+2) Write a 4-6 sentence executive summary focused on implications for type of beverages specified by user.
 3) Provide 3-6 bullet key points (facts only).
-4) Provide up to 3 risks & 3 opportunities.
+4) Provide up to upto 3 risks & upto 3 opportunities, if any
 
 TEXT:
 {clipped}
@@ -273,11 +275,9 @@ TEXT:
             full = ""
 
     # Parse with simple regex heuristics
-    cats = re.findall(r"Categories?:\s*(.*)", full, flags=re.I)
-    cats_list = []
-    if cats:
-        # split by comma or semicolon
-        cats_list = [c.strip(" -•\n\r\t") for c in re.split(r"[;,]", cats[0]) if c.strip()]
+    cats_list = parse_categories(full)
+    # if not cats_list:
+    #     cats_list = ["Competitive intel & new SKUs"]  # sensible default
 
     # Extract sections
     def section(name):
@@ -298,22 +298,24 @@ TEXT:
         # try to synthesize from sentences
         bullets = [x.strip() for x in re.split(r"(?<=[.])\s+", summary) if len(x.strip()) > 0][:5]
 
-    # Sanitize categories to our list
-    cats_list = [c for c in cats_list if any(c.lower() in k.lower() for k in CATEGORIES)]
-    if not cats_list:
-        cats_list = ["Competitive intel & new SKUs"]
+    # Sanitize categories to list
+    # cats_list = [c for c in cats_list if any(c.lower() in k.lower() for k in CATEGORIES)]
+    # if not cats_list:
+    #     cats_list = ["Competitive intel & new SKUs"]
 
     return cats_list[:4], summary.strip(), bullets[:6], risks_list[:3] + opps_list[:3]
 
 
 # ---- Pipeline ----
 
-def process_item(source_name: str, title: str, url: str, published: str, state: Dict[str, bool]):
+def process_item(source_name: str, title: str, url: str, published: str, state: Dict[str, bool],timestamp_dir_name):
     key = hash_str(url)
     if state.get(key):
         return None
 
-    raw_dir = RAW_DIR / source_name
+
+
+    raw_dir = RAW_DIR / source_name / timestamp_dir_name
     raw_dir.mkdir(parents=True, exist_ok=True)
 
     record = {
@@ -363,14 +365,14 @@ def crawl_once() -> List[SummaryItem]:
     ensure_dirs()
     state = load_state()
     results: List[SummaryItem] = []
-
+    timestamp_dir_name = now_string()
     # RSS first
     for source, cfg in SOURCES.items():
         for feed in cfg.get("rss_feeds", []):
             log.info(f"RSS: {source} <- {feed}")
             entries = fetch_rss_entries(feed)
             for e in tqdm(entries, desc=f"{source} RSS"):
-                it = process_item(source, e["title"], e["link"], e["published"], state)
+                it = process_item(source, e["title"], e["link"], e["published"], state, timestamp_dir_name)
                 if it:
                     results.append(it)
 
@@ -384,7 +386,7 @@ def crawl_once() -> List[SummaryItem]:
             links = guess_article_links(url, html)
             for link in tqdm(links[:25], desc=f"{source} LIST"):
                 title_guess = sanitize_filename(link.split("/")[-1]).replace("_", " ")
-                it = process_item(source, title_guess, link, "", state)
+                it = process_item(source, title_guess, link, "", state, timestamp_dir_name)
                 if it:
                     results.append(it)
 
