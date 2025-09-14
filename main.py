@@ -2,7 +2,8 @@
 # Bev Analyser - Market Monitor (RSS + PDF) for beverages
 # Run:  python monitor.py --once
 # Or:   python monitor.py --interval-min 120
-
+from configs import *
+from prompts import *
 import os, re, json, time, hashlib, argparse, datetime, pathlib, logging, itertools
 from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass, field
@@ -18,59 +19,15 @@ import dotenv
 # Optional: scheduler mode
 from apscheduler.schedulers.background import BackgroundScheduler
 import os
+from openai import OpenAI
+from rss_sources import SOURCES, RssSource
 
 dotenv.load_dotenv()
 
 # ---- Config (edit as needed) ----
 
-CATEGORIES = [
-    "Consumer signals & UGC",
-    "Competitive intel & new SKUs",
-    "Flavors",
-    "Ingredients & functional actives",
-]
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# Sources we’ll monitor.
-# For BevNET and FoodDive we’ll scrape listing pages as a fallback.
-SOURCES = {
-    "foodbusinessnews": {
-        "rss_feeds": [
-            "https://www.foodbusinessnews.net/rss/2",  # FBN Best News
-            "https://www.foodbusinessnews.net/rss/topic/515-non-alcoholic-beverages",
-        ],
-        "html_pages": []  # not needed because RSS is rich here
-    },
-    "just-drinks": {
-        "rss_feeds": [
-            "https://www.just-drinks.com/news/feed/feed"
-        ],
-        "html_pages": []
-    },
-    "bevnet": {
-        "rss_feeds": [],  # unclear public site-wide feed
-        "html_pages": [
-            "https://www.bevnet.com/news/"
-        ],
-    },
-    "fooddive": {
-        "rss_feeds": [],  # use scraping
-        "html_pages": [
-            "https://www.fooddive.com/topic/beverages/",
-            "https://www.fooddive.com/press-release/",
-        ],
-    },
-}
-
-# Output folders
-DATA_DIR = pathlib.Path("data")
-RAW_DIR = DATA_DIR / "raw"
-OUT_DIR = pathlib.Path("out")
-STATE_FILE = DATA_DIR / "state.json"
-SUMMARY_DIR = OUT_DIR / "summaries"
-
-# OpenAI model configuration
-OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")  # fast/cheap, good quality
-OPENAI_MAX_CHARS = 12000  # keep prompts sensible
 
 # ---- Logging ----
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
@@ -134,6 +91,16 @@ def absolute_url(base: str, href: str) -> Optional[str]:
         return requests.compat.urljoin(base, href)
     except Exception:
         return None
+
+def match_categories(article) ->list[str]:
+        cat_paragraph_title = "### Selected Categories:\n"
+
+        if article.startswith(cat_paragraph_title):
+            cats_prefixed = article.split("\n\n")[0].split("\n")[1:]
+            cats = list(map(lambda cat: cat[2:].strip(), cats_prefixed))
+        else:
+            cats = []
+        return cats
 
 def guess_article_links(listing_url: str, html: str) -> List[str]:
     # Generic heuristic: collect <a> hrefs that look like article pages (contain /news/ or date-like slugs)
@@ -212,55 +179,24 @@ class SummaryItem(BaseModel):
     risks: List[str]
     opportunities: List[str]
 
-def parse_categories(full: str):
-    """
-    Extract category lines from either:
-      A) '### Relevant Categories' (or 'Categories') then list items
-      B) 'Categories: ...' inline
-    Returns a list mapped to KNOWN category names where possible.
-    """
-    cat_paragraph_title = "### Relevant Categories\n"
-    cats_prefixed = full.split("\n\n")[0].split("\n")[1:]
-    cats = list(map(lambda cat: cat[2:].strip(), cats_prefixed))
-    return cats
 
-def call_openai_summary(text: str, url: str, title: str) -> Tuple[List[str], str, List[str], List[str]]:
+def call_openai_summary(source:RssSource, text: str, url: str, title: str) -> Tuple[List[str], str, List[str], List[str]]:
     from openai import OpenAI
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
     log.info("call_openai_summary(...) started")
     # Clip text length for token safety
     clipped = text[:OPENAI_MAX_CHARS]
 
-    system_prompt = (
-        "You are a market analyst for a global beverages company covering energy drinks, specifically"
-        "functional/sport drinks"
-        "Classify content into our monitoring categories provided by user and produce crisp, factual outputs."
-    )
 
-    user_prompt = f"""
-URL: {url}
-TITLE: {title}
 
-CATEGORIES TO USE:
-{', '.join(CATEGORIES)}
-
-TASKS:
-1) Pick the 2-4 most relevant categories for this item (categories specified in paragraph "CATEGORIES TO USE:").
-2) Write a 4-6 sentence executive summary focused on implications for type of beverages specified by user.
-3) Provide 3-6 bullet key points (facts only).
-4) Provide up to upto 3 risks & upto 3 opportunities, if any
-
-TEXT:
-{clipped}
-"""
 
     # Using the OpenAI Responses API (official SDK).
     # See OpenAI Platform docs for the Python SDK & Responses API.
     rsp = client.responses.create(
         model=OPENAI_MODEL,
         input=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
+            {"role": "system", "content": global_system_prompt},
+            {"role": "user", "content": get_user_prompt(url, title, CATEGORIES,clipped)},
         ],
         temperature=0.2,
     )
@@ -273,9 +209,8 @@ TEXT:
             full = rsp.choices[0].message.content[0].text
         except Exception:
             full = ""
-
+    cats_list = match_categories(full)
     # Parse with simple regex heuristics
-    cats_list = parse_categories(full)
     # if not cats_list:
     #     cats_list = ["Competitive intel & new SKUs"]  # sensible default
 
@@ -303,23 +238,20 @@ TEXT:
     # if not cats_list:
     #     cats_list = ["Competitive intel & new SKUs"]
 
-    return cats_list[:4], summary.strip(), bullets[:6], risks_list[:3] + opps_list[:3]
+    return cats_list, summary.strip(), bullets[:6], risks_list[:3] + opps_list[:3]
 
 
 # ---- Pipeline ----
 
-def process_item(source_name: str, title: str, url: str, published: str, state: Dict[str, bool],timestamp_dir_name):
+def process_item(source: RssSource, title: str, url: str, published: str, state: Dict[str, bool],timestamp_dir_name):
     key = hash_str(url)
     if state.get(key):
         return None
-
-
-
-    raw_dir = RAW_DIR / source_name / timestamp_dir_name
+    raw_dir = RAW_DIR / source.name / timestamp_dir_name
     raw_dir.mkdir(parents=True, exist_ok=True)
 
     record = {
-        "source": source_name,
+        "source": source.name,
         "title": title,
         "url": url,
         "published": published,
@@ -344,16 +276,16 @@ def process_item(source_name: str, title: str, url: str, published: str, state: 
 
     # Summarize
     log.info(f"summarising url: {url}, title: {title}")
-    cats, summary, bullets, risk_opp = call_openai_summary(text, url, title)
+    cats, summary, bullets, risk_opp = call_openai_summary(source, text, url, title)
 
     item = SummaryItem(
-        source=source_name, title=title, url=url, published=published,
+        source=source.name, title=title, url=url, published=published,
         categories=cats, summary=summary, key_points=bullets,
         risks=risk_opp[:3], opportunities=risk_opp[3:]
     )
 
     # Persist raw item (JSONL per source)
-    jl = raw_dir / f"{source_name}.jsonl"
+    jl = raw_dir / f"{source.name}.jsonl"
     with jl.open("a", encoding="utf-8") as f:
         f.write(json.dumps(item.model_dump(), ensure_ascii=False) + "\n")
 
@@ -367,24 +299,24 @@ def crawl_once() -> List[SummaryItem]:
     results: List[SummaryItem] = []
     timestamp_dir_name = now_string()
     # RSS first
-    for source, cfg in SOURCES.items():
-        for feed in cfg.get("rss_feeds", []):
-            log.info(f"RSS: {source} <- {feed}")
+    for src in SOURCES:
+        for feed in src.rss_feeds:
+            log.info(f"RSS: {src.name} <- {feed}")
             entries = fetch_rss_entries(feed)
-            for e in tqdm(entries, desc=f"{source} RSS"):
-                it = process_item(source, e["title"], e["link"], e["published"], state, timestamp_dir_name)
+            for e in tqdm(entries, desc=f"{src.name} RSS"):
+                it = process_item(src, e["title"], e["link"], e["published"], state, timestamp_dir_name)
                 if it:
                     results.append(it)
 
     # Listing pages (scrape) for sources without reliable RSS
-    for source, cfg in SOURCES.items():
-        for url in cfg.get("html_pages", []):
-            log.info(f"SCRAPE: {source} <- {url}")
+    for source in SOURCES:
+        for url in source.html_pages:
+            log.info(f"SCRAPE: {source.name} <- {url}")
             html = get_html(url)
             if not html:
                 continue
             links = guess_article_links(url, html)
-            for link in tqdm(links[:25], desc=f"{source} LIST"):
+            for link in tqdm(links[:25], desc=f"{source.name} LIST"):
                 title_guess = sanitize_filename(link.split("/")[-1]).replace("_", " ")
                 it = process_item(source, title_guess, link, "", state, timestamp_dir_name)
                 if it:
