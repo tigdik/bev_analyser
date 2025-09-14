@@ -343,8 +343,8 @@ def write_summary_report(items: List[SummaryItem]) -> pathlib.Path:
     ts = now_string()
     path = SUMMARY_DIR / f"{ts}_market-summary.md"
     lines = []
-    lines.append(f"# Beverage Market Summary — {ts}\n")
-    lines.append(f"_Sources this run: {', '.join(sorted(set(i.source for i in items)))}_")
+    lines.append(f"# Beverage Market Overview — {ts}\n")
+    lines.append(f"_Sources: {', '.join(sorted(set(i.source for i in items)))}_")
     lines.append("")
 
     for cat, lst in by_cat.items():
@@ -356,21 +356,22 @@ def write_summary_report(items: List[SummaryItem]) -> pathlib.Path:
             lines.append(f"- **Source:** {i.source} | **Published:** {i.published or 'n/a'}")
             lines.append(f"- **Link:** {i.url}")
             lines.append("")
+            lines.append("### Summary:")
             lines.append(i.summary.strip())
             lines.append("")
-            if i.key_points:
-                lines.append("**Key points:**")
-                for b in i.key_points:
-                    lines.append(f"- {b}")
-            if i.risks:
-                lines.append("**Risks:**")
-                for r in i.risks:
-                    lines.append(f"- {r}")
-            if i.opportunities:
-                lines.append("**Opportunities:**")
-                for o in i.opportunities:
-                    lines.append(f"- {o}")
-            lines.append("")
+            # if i.key_points:
+            #     lines.append("**Key points:**")
+            #     for b in i.key_points:
+            #         lines.append(f"- {b}")
+            # if i.risks:
+            #     lines.append("**Risks:**")
+            #     for r in i.risks:
+            #         lines.append(f"- {r}")
+            # if i.opportunities:
+            #     lines.append("**Opportunities:**")
+            #     for o in i.opportunities:
+            #         lines.append(f"- {o}")
+            # lines.append("")
         lines.append("")
 
     path.write_text("\n".join(lines), encoding="utf-8")
