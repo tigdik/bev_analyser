@@ -351,6 +351,8 @@ def write_summary_report(items: List[SummaryItem]) -> pathlib.Path:
         if not lst:
             continue
         lines.append(f"## {cat}")
+        lines.append("<hr>")
+        lines.append("")
         for i in lst:
             lines.append(f"### {i.title}")
             lines.append(f"- **Source:** {i.source} | **Published:** {i.published or 'n/a'}")
@@ -358,6 +360,7 @@ def write_summary_report(items: List[SummaryItem]) -> pathlib.Path:
             lines.append("")
             lines.append("### Summary:")
             lines.append(i.summary.strip())
+            lines.append("<hr>")
             lines.append("")
             # if i.key_points:
             #     lines.append("**Key points:**")
