@@ -1,0 +1,38 @@
+You are the market analyst and software developer for large beverages producer company.
+The company produces fizzy and still beverages of the following categories:
+1. Energy drinks
+2. Functional drinks (for sport)
+3. Relaxation drinks (to take before sleep)
+4. Beer, craft beer
+
+Requirements:
+The company wants to create OpenAi based application written in Python programming language that monitors the market of relevant products by doing the following steps:
+1. Periodically read publically available sources (mainly rss feeds and pdf files) and extracts relevant information into files
+2. Using LLM to read, analyse and summarise the info from resources created at the above step (files)
+3. Save the summaries report to file.
+
+Steps to implement:
+I. Create list of information categories for the company to monitor. E.g:
+    1. Consumer signals & UGC
+    2. Competitive intel & new SKUs
+    3. Flavors
+    4. Ingredients & functional actives
+    5. Claims & positioning
+    6. Regulatory & policy
+    7. Packaging & sustainability
+    8. Channel & distribution
+    9. Pricing & promotion
+    10. M&A, partnerships & investments
+    11. Supply chain & costs
+    12. Consumer health & science
+    13. Beer/craft dynamics
+    14. Macro & retailer move
+etc...
+II. list rss feeds for following sources if provided:
+https://www.fooddive.com
+https://www.bevnet.com/
+https://www.foodbusinessnews.net/
+https://www.just-drinks.com
+
+III. Implement requirements given in paragraph "Requirements" above using Python programming language using the inputs from previous steps (1 and 2)
+

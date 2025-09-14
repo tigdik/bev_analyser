@@ -1,1 +1,3 @@
-# bev_analyser
+```bash
+pip install -r requirements.txt
+```
