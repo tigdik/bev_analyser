@@ -46,7 +46,7 @@ def download_pdf(url: str, dest_dir: pathlib.Path) -> Optional[pathlib.Path]:
         log.warning(f"PDF download failed {url}: {e}")
     return None
 
-def call_openai_summary(text: str, url: str, title: str) -> Tuple[List[str], str, List[str], List[str]]:
+def call_openai_summary(text: str, url: str, title: str) -> Optional[Tuple[List[str], str, List[str], List[str]]]:
     log.info("call_openai_summary(...) started")
     clipped = text[:OPENAI_MAX_CHARS]
     rsp = client.responses.create(
@@ -59,29 +59,19 @@ def call_openai_summary(text: str, url: str, title: str) -> Tuple[List[str], str
     )
 
     # Extract text; the SDK provides .output_text in recent versions
-    full = getattr(rsp, "output_text", None)
-    if not full:
-        # fallback for older SDKs
-        try:
-            full = rsp.choices[0].message.content[0].text
-        except Exception:
-            full = ""
-    cats_list = match_categories(full)
-    # Parse with simple regex heuristics
-    # if not cats_list:
-    #     cats_list = ["Competitive intel & new SKUs"]  # sensible default
-
-    # Extract sections
-    def section(name):
-        return full.split(f"### {name}:")[1].split("\n\n")[0]
-
-    summary = section("Summary")
-    key_points = section("Key Points")
-    risks = section("Risks")
-    opportunities = section("Opportunities")
+    article = getattr(rsp, "output_text", None)
+    if not article or article.find("IRRELEVANT_CONTENT")>=0:
+        return None
+    else:
+        cats_list = match_categories(article)
+        # Extract sections
+        summary = section("Summary", article)
+        key_points = section("Key Points", article)
+        risks = section("Risks", article)
+        opportunities = section("Opportunities", article)
 
 
-    return cats_list, summary.strip(), key_points.strip(), risks.strip(), opportunities.strip()
+        return cats_list, summary.strip(), key_points.strip(), risks.strip(), opportunities.strip()
 
 
 # ---- Pipeline ----
@@ -119,21 +109,24 @@ def process_item(source: RssSource, title: str, url: str, published: str, state:
 
     # Summarize
     log.info(f"summarising url: {url}, title: {title}")
-    cats, summary, key_points, risks, opps = call_openai_summary(text, url, title)
+    resp = call_openai_summary(text, url, title)
 
-    item = SummaryItem(
-        source=source.name, title=title, url=url, published=published,
-        categories=cats, summary=summary, key_points=key_points,
-        risks=risks, opportunities=opps
-    )
+    if resp:
+        cats, summary, key_points, risks, opps = resp
+        item = SummaryItem(
+            source=source.name, title=title, url=url, published=published,
+            categories=cats, summary=summary, key_points=key_points,
+            risks=risks, opportunities=opps
+        )
 
-    # Persist raw item (JSONL per source)
-    jl = raw_dir / f"{source.name}.jsonl"
-    with jl.open("a", encoding="utf-8") as f:
-        f.write(json.dumps(item.model_dump(), ensure_ascii=False) + "\n")
+        # Persist raw item (JSONL per source)
+        jl = raw_dir / f"{source.name}.jsonl"
+        with jl.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(item.model_dump(), ensure_ascii=False) + "\n")
 
-    state[key] = True
-    return item
+        state[key] = True
+        return item
+    return None
 
 
 def crawl_once() -> List[SummaryItem]:
@@ -152,18 +145,18 @@ def crawl_once() -> List[SummaryItem]:
                     results.append(it)
 
     # Listing pages (scrape) for sources without reliable RSS
-    for source in SOURCES:
-        for url in source.html_pages:
-            log.info(f"SCRAPE: {source.name} <- {url}")
-            html = get_html(url)
-            if not html:
-                continue
-            links = guess_article_links(url, html)
-            for link in tqdm(links[:25], desc=f"{source.name} LIST"):
-                title_guess = sanitize_filename(link.split("/")[-1]).replace("_", " ") #add llm call here to guess the article title correctly
-                it = process_item(source, title_guess, link, "", state, timestamp_dir_name)
-                if it:
-                    results.append(it)
+    # for source in SOURCES:
+    #     for url in source.html_pages:
+    #         log.info(f"SCRAPE: {source.name} <- {url}")
+    #         html = get_html(url)
+    #         if not html:
+    #             continue
+    #         links = guess_article_links(url, html)
+    #         for link in tqdm(links[:25], desc=f"{source.name} LIST"):
+    #             title_guess = sanitize_filename(link.split("/")[-1]).replace("_", " ") #add llm call here to guess the article title correctly
+    #             it = process_item(source, title_guess, link, "", state, timestamp_dir_name)
+    #             if it:
+    #                 results.append(it)
 
     save_state(state)
     return results, timestamp_dir_name

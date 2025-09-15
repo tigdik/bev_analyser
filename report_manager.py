@@ -6,12 +6,17 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(
 log = logging.getLogger("bev-monitor")
 
 
-def match_categories(article) -> list[str]:
-    cat_paragraph_title = "### Selected Categories:\n"
+def section(section_name, article):
+    try:
+        return  article.split(f"### {section_name}:\n")[1].split("\n\n")[0]
+    except IndexError:
+        raise Exception(f"Could not find section {section_name}")
 
-    if article.startswith(cat_paragraph_title):
-        cats_prefixed = article.split("\n\n")[0].split("\n")[1:]
-        cats = list(map(lambda cat: cat[2:].strip(), cats_prefixed))
+def match_categories(article) -> list[str]:
+    section_name = "Selected Categories"
+    cats_paragraph = section(section_name, article)
+    if len(cats_paragraph)>56:
+        cats = list(map(lambda cat: cat[2:].strip(), cats_paragraph.split('\n')))
     else:
         cats = []
     return cats

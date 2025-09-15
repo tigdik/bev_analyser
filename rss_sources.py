@@ -31,16 +31,24 @@ class RssSource(BaseModel):
 
 
 SOURCES = [
+            # RssSource(
+            #           name="foodbusinessnews",
+            #           rss_feeds=["https://www.foodbusinessnews.net/rss/2", "https://www.foodbusinessnews.net/rss/topic/515-non-alcoholic-beverages"],
+            #           html_pages=[]
+            #           ),
+            # RssSource(name="just-drinks", rss_feeds=["https://www.just-drinks.com/news/feed/feed"], html_pages=[]),
             RssSource(
-                      name="foodbusinessnews",
-                      rss_feeds=["https://www.foodbusinessnews.net/rss/2", "https://www.foodbusinessnews.net/rss/topic/515-non-alcoholic-beverages"],
+                      name="bevindustry.com",
+                      rss_feeds=["https://www.bevindustry.com/rss/16"],
                       html_pages=[]
-                      ),
-            RssSource(name="just-drinks", rss_feeds=["https://www.just-drinks.com/news/feed/feed"], html_pages=[]),
-            RssSource(
-                      name="fooddive",
-                      rss_feeds=["https://www.fooddive.com/topic/beverages/"],
-                      html_pages=["https://www.fooddive.com/press-release/"]
-            ),
+                      )#,
+            # RssSource(name="just-drinks", rss_feeds=["https://www.just-drinks.com/news/feed/feed"], html_pages=[]),
+
+            # RssSource(
+            #           name="fooddive",
+            #           rss_feeds=["https://www.fooddive.com/feeds/news/"],
+            #           html_pages=[]
+            #               # html_pages=["https://www.fooddive.com/press-release/"]
+            # ),
             # RssSource(name="bevnet",rss_feeds=[],html_pages=["https://www.bevnet.com/news/"]) # for html pages, each RssSource needs custom html data scraper
           ]

@@ -27,8 +27,9 @@ CATEGORIES TO USE:
 {', '.join(cats)}
 
 TASKS:
-1) Pick the 1-4 most relevant categories for this item (categories specified in paragraph "CATEGORIES TO USE:").
-2) Write summary report that has following paragraphs:
+1) Check the text for relevance.If the text is irrelevant to manufacturing and marketing energy drinks, then ignore it and return string 'IRRELEVANT_CONTENT'. Otherwise proceed to the next step
+2) Pick the 1-4 most relevant categories for this item (categories specified in paragraph "CATEGORIES TO USE:").
+3) Write summary report that has following paragraphs:
  * '### Selected Categories:': it provides numbered list of the relevant categories 
  * '### Summary:': consists of 4-6 sentence executive summary focused on implications for type of beverages specified by user.
  * '### Key Points:': 3-6 bullet key points (facts only).
