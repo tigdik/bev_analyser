@@ -42,5 +42,5 @@ SOURCES = [
                       rss_feeds=["https://www.fooddive.com/topic/beverages/"],
                       html_pages=["https://www.fooddive.com/press-release/"]
             ),
-            # RssSource(name="bevnet",rss_feeds=[],html_pages=["https://www.bevnet.com/news/"])
+            # RssSource(name="bevnet",rss_feeds=[],html_pages=["https://www.bevnet.com/news/"]) # for html pages, each RssSource needs custom html data scraper
           ]
