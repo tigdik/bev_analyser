@@ -160,7 +160,7 @@ def crawl_once() -> List[SummaryItem]:
                 continue
             links = guess_article_links(url, html)
             for link in tqdm(links[:25], desc=f"{source.name} LIST"):
-                title_guess = sanitize_filename(link.split("/")[-1]).replace("_", " ")
+                title_guess = sanitize_filename(link.split("/")[-1]).replace("_", " ") #add llm call here to guess the article title correctly
                 it = process_item(source, title_guess, link, "", state, timestamp_dir_name)
                 if it:
                     results.append(it)
