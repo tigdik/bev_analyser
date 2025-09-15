@@ -8,7 +8,7 @@ def generate_category_match_prompt(cats:list[str]) -> str:
     "this is the list of news categories for non-alcoholic beverage manufacturing/marketing industry: \n"
     f"{cats}\n"
     "read the user message representing industry news article and select the at least 1 category which the article fits best into.\n"
-    "note: if there's no match can be detected select 'miscellaneous' category"
+    "note: if there's no match can be detected select 'Miscellaneous' category"
     "return the category"
 )
 
@@ -28,10 +28,12 @@ CATEGORIES TO USE:
 
 TASKS:
 1) Pick the 1-4 most relevant categories for this item (categories specified in paragraph "CATEGORIES TO USE:").
-2) Write a 4-6 sentence executive summary paragraph named '### Summary:' focused on implications for type of beverages specified by user.
-3) make sure the first paragraph of your answer is called '### Selected Categories:' and it provides numbered list of the relevant categories 
-3) Provide 3-6 bullet key points (facts only), name this paragraph '### Key Points:'.
-4) Provide up to upto 3 risks & upto 3 opportunities, if any, naming corresponding paragraphs '### Risks' and '### Opportunities' respectively
+2) Write summary report that has following paragraphs:
+ * '### Selected Categories:': it provides numbered list of the relevant categories 
+ * '### Summary:': consists of 4-6 sentence executive summary focused on implications for type of beverages specified by user.
+ * '### Key Points:': 3-6 bullet key points (facts only).
+ * '### Risks:': upto 3 risks
+ * '### Opportunities': upto 3 opportunities
 
 TEXT:
 {clipped}

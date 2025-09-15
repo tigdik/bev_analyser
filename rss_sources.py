@@ -31,16 +31,16 @@ class RssSource(BaseModel):
 
 
 SOURCES = [
-            RssSource(
-                      name="foodbusinessnews",
-                      rss_feeds=["https://www.foodbusinessnews.net/rss/2", "https://www.foodbusinessnews.net/rss/topic/515-non-alcoholic-beverages"],
-                      html_pages=[]
-                      ),
-            # RssSource(name="just-drinks", rss_feeds=["https://www.just-drinks.com/news/feed/feed"], html_pages=[]),
             # RssSource(
-            #           name="fooddive",
-            #           rss_feeds=["https://www.fooddive.com/topic/beverages/"],
-            #           html_pages=["https://www.fooddive.com/press-release/"]
-            # ),
+            #           name="foodbusinessnews",
+            #           rss_feeds=["https://www.foodbusinessnews.net/rss/2", "https://www.foodbusinessnews.net/rss/topic/515-non-alcoholic-beverages"],
+            #           html_pages=[]
+            #           ),
+            # RssSource(name="just-drinks", rss_feeds=["https://www.just-drinks.com/news/feed/feed"], html_pages=[]),
+            RssSource(
+                      name="fooddive",
+                      rss_feeds=["https://www.fooddive.com/topic/beverages/"],
+                      html_pages=["https://www.fooddive.com/press-release/"]
+            ),
             RssSource(name="bevnet",rss_feeds=[],html_pages=["https://www.bevnet.com/news/"])
           ]
