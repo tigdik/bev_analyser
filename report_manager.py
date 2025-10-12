@@ -1,25 +1,11 @@
 from configs import *
 import logging
-from domain import *
+from domain import SummaryItem
+from typing import List, Dict
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
 log = logging.getLogger("bev-monitor")
 
-
-def section(section_name, article):
-    try:
-        return  article.split(f"### {section_name}:\n")[1].split("\n\n")[0]
-    except IndexError:
-        raise Exception(f"Could not find section {section_name}")
-
-def match_categories(article) -> list[str]:
-    section_name = "Selected Categories"
-    cats_paragraph = section(section_name, article)
-    if len(cats_paragraph)>56:
-        cats = list(map(lambda cat: cat[2:].strip(), cats_paragraph.split('\n')))
-    else:
-        cats = []
-    return cats
 
 def write_summary_report(items: List[SummaryItem], md_file_dt_prefix:str) -> pathlib.Path:
     if not items:

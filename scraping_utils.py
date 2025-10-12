@@ -4,6 +4,9 @@ from bs4 import BeautifulSoup
 import logging, pathlib, trafilatura
 from pdfminer.high_level import extract_text as pdf_extract_text
 import feedparser
+import re
+
+from configs import RAW_DIR
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
 log = logging.getLogger("bev-monitor")
@@ -18,6 +21,22 @@ def get_html(url: str, timeout=30) -> Optional[str]:
     except Exception as e:
         log.warning(f"HTML fetch failed: {url} ({e})")
     return None
+
+def extract_article(record,url,source_name,timestamp_dir_name):
+    text = extract_text_from_url(url)
+    record["text_len"] = len(text)
+    raw_dir = RAW_DIR / source_name / timestamp_dir_name
+    # Also seek PDFs linked from the page
+    html = get_html(url)
+    pdf_texts = []
+    if html:
+        for pdf_url in detect_pdf_links(html, url)[:3]:
+            p = download_pdf(pdf_url, raw_dir)
+            if p:
+                t = extract_text_from_pdf(p)
+                if t:
+                    pdf_texts.append({"pdf_url": pdf_url, "chars": len(t)})
+                    text += "\n\n" + t
 
 def extract_text_from_url(url: str) -> str:
     # trafilatura will fetch if you pass URL; but we prefer to fetch HTML once and extract from string.
@@ -73,15 +92,18 @@ def extract_text_from_pdf(path: pathlib.Path) -> str:
         log.warning(f"PDF extract failed {path}: {e}")
         return ""
 
-def fetch_rss_entries(feed_url: str) -> List[Dict]:
-    d = feedparser.parse(feed_url)
-    items = []
-    for e in d.entries:
-        items.append({
-            "title": e.get("title", ""),
-            "link": e.get("link", ""),
-            "published": e.get("published", ""),
-            "summary": e.get("summary", ""),
-            "source_feed": feed_url
-        })
-    return items
+def download_pdf(url: str, dest_dir: pathlib.Path) -> Optional[pathlib.Path]:
+    try:
+        headers = {"User-Agent": "bev-monitor/1.0"}
+        r = requests.get(url, headers=headers, timeout=45)
+        if r.status_code == 200 and "application/pdf" in r.headers.get("content-type", "") or url.lower().endswith(".pdf"):
+            name = sanitize_filename(pathlib.Path(url).name)
+            p = dest_dir / name
+            p.write_bytes(r.content)
+            return p
+    except Exception as e:
+        log.warning(f"PDF download failed {url}: {e}")
+    return None
+
+def sanitize_filename(s: str) -> str:
+    return re.sub(r"[^a-zA-Z0-9._-]+", "_", s)[:100]

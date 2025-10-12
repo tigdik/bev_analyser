@@ -5,6 +5,7 @@ from openai import OpenAI
 from configs import OPENAI_MODEL, CATEGORIES
 from prompts import *
 import dotenv
+from domain import RssSource
 
 dotenv.load_dotenv()
 
@@ -22,11 +23,6 @@ def default_categories_parser(article:str):
     )
     cat = getattr(rsp, "output_text", None)
     return cat
-
-class RssSource(BaseModel):
-    name: str
-    rss_feeds: list[str]
-    html_pages: list[str]
 
 
 
