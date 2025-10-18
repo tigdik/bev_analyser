@@ -7,7 +7,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(
 log = logging.getLogger("bev-monitor")
 
 
-def write_summary_report(items: List[SummaryItem], md_file_dt_prefix:str) -> pathlib.Path:
+def write_md_summary_report(items: List[SummaryItem], md_file_dt_prefix:str) -> pathlib.Path:
     if not items:
         log.info("No new items this run.")
         return SUMMARY_DIR / f"{md_file_dt_prefix}_empty.md"
