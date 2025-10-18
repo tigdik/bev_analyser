@@ -1,6 +1,4 @@
-import reports_dao
-from domain import ReportItem
-from report_manager import *
+from report.report_manager import *
 from rss_reader import *
 from scraping_utils import *
 from state_manager import *
@@ -42,7 +40,7 @@ def run():
     report_path = RAW_DIR / timestamp_dir_name
     report_path.mkdir(parents=True, exist_ok=True)
     report.save_json(f"{report_path}/report.json")
-    write_summary_report(list(filter(lambda it:it is not None, items)), timestamp_dir_name)
+    write_md_summary_report(list(filter(lambda it: it is not None, items)), timestamp_dir_name)
 
 
 if __name__ == "__main__":
