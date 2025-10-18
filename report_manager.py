@@ -14,7 +14,7 @@ def write_summary_report(items: List[SummaryItem], md_file_dt_prefix:str) -> pat
 
     # Group by categories and by source
     by_cat: Dict[str, List[SummaryItem]] = {c: [] for c in CATEGORIES}
-    for it in items:
+    for it in list(filter(lambda it:it is not None, items)):
         for c in it.categories:
             if c in by_cat:
                 by_cat[c].append(it)

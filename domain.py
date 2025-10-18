@@ -1,9 +1,13 @@
 
 from pydantic import BaseModel
-from llm.open_ai import call_openai_summary
-from typing import List, Optional
+from pathlib import Path
+import configs
+from llm.open_ai import call_openai_summary, get_global_summary
+from typing import List, Optional, Dict
 import scraping_utils
 import logging
+
+from prompts import get_global_summary_prompt
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
 log = logging.getLogger("bev-monitor")
@@ -65,6 +69,46 @@ class SummaryItem(BaseModel):
             item:SummaryItem = SummaryItem.from_openai_response(title, url, published, source_name, article)
             return item
 
+class GlobalSummaryReportItem(BaseModel):
+    summary: str
+    categories: List[str]
+    sources: List[RssSource]
+    key_points: str
+
+    @staticmethod
+    def from_items(items: List[SummaryItem]) -> 'GlobalSummaryReportItem':
+        from rss_sources import SOURCES
+
+        resp = get_global_summary(items)
+        global_summary = section("Summary", resp)
+        key_points = section("Key Points", resp)
+
+        return GlobalSummaryReportItem(
+            summary=global_summary,
+            categories=configs.CATEGORIES,
+            sources=SOURCES,
+            key_points=key_points
+        )
+
+
+class ReportItem(BaseModel):
+    summary: GlobalSummaryReportItem
+    summary_items: List[SummaryItem]
+
+    def save_json(self, path: str | Path) -> None:
+        """Save the ReportItem instance to a JSON file."""
+        Path(path).write_text(self.model_dump_json(indent=4))
+
+    @staticmethod
+    def from_items(items: List[SummaryItem]) -> 'ReportItem':
+       trimmed_summary_items = list(filter(lambda it:it is not None, items))
+       ri = ReportItem(
+            summary=GlobalSummaryReportItem.from_items(trimmed_summary_items),
+            summary_items=trimmed_summary_items
+        )
+       return ri
+
+
 def section(section_name, article):
     try:
         return  article.split(f"### {section_name}:\n")[1].split("\n\n")[0]
@@ -74,8 +118,5 @@ def section(section_name, article):
 def match_categories(article) -> list[str]:
     section_name = "Selected Categories"
     cats_paragraph = section(section_name, article)
-    if len(cats_paragraph)>56:
-        cats = list(map(lambda cat: cat[2:].strip(), cats_paragraph.split('\n')))
-    else:
-        cats = []
+    cats = list(map(lambda cat: cat[2:].strip(), cats_paragraph.split('\n')))
     return cats

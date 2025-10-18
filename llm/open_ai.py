@@ -14,8 +14,23 @@ client: OpenAI = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
 log = logging.getLogger("bev-monitor")
 
+def get_global_summary(text: str) -> Optional[str]:
+    log.info("generating global summary...")
+    clipped = text[:OPENAI_MAX_CHARS]
+    rsp:Response = client.responses.create(
+        model=OPENAI_MODEL,
+        input=[
+            {"role": "system", "content": global_system_prompt},
+            {"role": "user", "content": get_global_summary_prompt(clipped)},
+        ],
+        temperature=0.2,
+    )
+    article = getattr(rsp, "output_text", None)
+    return article
+
+
 def call_openai_summary(text: str, url: str, title: str) -> Optional[str]:
-    log.info("call_openai_summary(...) started")
+    log.info(f"generating summary for article {title}...")
     clipped = text[:OPENAI_MAX_CHARS]
     rsp:Response = client.responses.create(
         model=OPENAI_MODEL,

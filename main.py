@@ -1,4 +1,5 @@
 import reports_dao
+from domain import ReportItem
 from report_manager import *
 from rss_reader import *
 from scraping_utils import *
@@ -26,19 +27,22 @@ def get_summaries() -> List[SummaryItem]:
     ensure_dirs()
     state = load_state()
     timestamp_dir_name = now_string()
-    results: List[SummaryItem] = []
     summaries = read_summaries_from_rss_sources(timestamp_dir_name)
-    for summary in summaries:
-        if not summary:
-            continue
-        reports_dao.save_report(summary, timestamp_dir_name, state)
+    # for summary in summaries:
+    #     if not summary:
+    #         continue
+    #     reports_dao.save_summary_item(summary, timestamp_dir_name, state)
 
     save_state(state)
-    return results, timestamp_dir_name
+    return summaries, timestamp_dir_name
 
 def run():
     items, timestamp_dir_name = get_summaries()
-    write_summary_report(items, timestamp_dir_name)
+    report: ReportItem = ReportItem.from_items(items)
+    report_path = RAW_DIR / timestamp_dir_name
+    report_path.mkdir(parents=True, exist_ok=True)
+    report.save_json(f"{report_path}/report.json")
+    write_summary_report(list(filter(lambda it:it is not None, items)), timestamp_dir_name)
 
 
 if __name__ == "__main__":

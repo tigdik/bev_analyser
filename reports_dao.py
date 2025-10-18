@@ -1,4 +1,4 @@
-from domain import SummaryItem
+from domain import SummaryItem, ReportItem
 from configs import *
 import json, hashlib
 from typing import Dict
@@ -10,9 +10,9 @@ log = logging.getLogger("bev-monitor")
 def hash_str(s: str) -> str:
     return hashlib.sha256(s.encode("utf-8")).hexdigest()[:16]
 
-def save_report(report: SummaryItem, timestamp_dir_name:str, state: Dict[str, bool]):
+def save_summary_item(report: SummaryItem, timestamp_dir_name:str, state: Dict[str, bool]):
     if not report:
-        log.info(f"save_report, SummaryItem is None!")
+        log.info(f"save_summary_item, SummaryItem is None!")
         return
     else:
         key = hash_str(report.url)

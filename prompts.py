@@ -27,15 +27,29 @@ CATEGORIES TO USE:
 {', '.join(cats)}
 
 TASKS:
-1) Check the text for relevance.If the text is irrelevant to manufacturing and marketing energy drinks, then ignore it and return string 'IRRELEVANT_CONTENT'. Otherwise proceed to the next step
+The content given in section 'TEXT:' below represents a news article related to non-alcoholic beverage manufacturing/marketing industry.
+YOUR TASK:
+1) Study the article for relevance. If the text is irrelevant to manufacturing and marketing energy drinks, then ignore it and return string 'IRRELEVANT_CONTENT'. Otherwise proceed to the next step
 2) Pick the 1-4 most relevant categories for this item (categories specified in paragraph "CATEGORIES TO USE:").
-3) Write summary report that has following paragraphs:
- * '### Selected Categories:': it provides numbered list of the relevant categories 
- * '### Summary:': consists of 4-6 sentence executive summary focused on implications for type of beverages specified by user.
+3) Write report based on the article that has following paragraphs:
+ * '### Selected Categories:': it provides numbered list of the relevant categories you have created at step 2) above
+ * '### Summary:': consists of 4-6 sentence executive summary of the article.
  * '### Key Points:': 3-6 bullet key points (facts only).
  * '### Risks:': upto 3 risks
  * '### Opportunities': upto 3 opportunities
 
 TEXT:
 {clipped}
+"""
+
+def get_global_summary_prompt(summaries:str) -> str:
+    return f"""
+    the following text represents a two empty lines delimited list of market news summaries for non-alcoholic beverage manufacturing/marketing industry:
+    {summaries}
+    YOUR TASK:
+    read the list of summaries and produce a summary for beverage industry executives that has following header:
+     '# Report'
+     followed by paragraphs:
+     * '### Summary:': consists of 5-10 sentences executive summary.
+     * '### Key Points:': 3-6 bullet key points (facts only).
 """
